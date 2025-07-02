@@ -23,7 +23,15 @@ module.exports = {
     sepolia: {
       url: SEPOLIA_RPC_URL,
       accounts: [PRIVATE_KEY]
-    }
+    },
+    hpp_sepolia: {
+      url: HPP_SEPOLIA_RPC_URL,
+      accounts: [PRIVATE_KEY]
+    },
+    hpp_mainnet: {
+      url: HPP_MAINNET_RPC_URL,
+      accounts: [PRIVATE_KEY]
+    },
   },
   etherscan: {
     apiKey: {
