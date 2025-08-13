@@ -13,7 +13,7 @@ const ETHERSCAN_API_MAINNET_URL = "https://api.etherscan.io/api";
 const ETHERSCAN_API_SEPOLIA_URL = "https://api-sepolia.etherscan.io/api";
 
 module.exports = {
-  solidity: "0.8.22",
+  solidity: "0.8.28",
   networks: {
     mainnet: {
       url: MAINNET_RPC_URL,
