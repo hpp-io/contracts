@@ -3,6 +3,8 @@
 ## Contract list
 * HPP_L1_Token.sol : House Party Protocol ERC20 Standard Token For Ethereum.
 * HPP_Vesting_AIP21.sol : 24-month vesting program for AIP-21 voters
+* HPP_Migration_AERGO.sol : AERGO to HPP Migration Contract
+* HPP_Migration_AQT.sol : AQT to HPP Migration Contract
 
 
 ## How to Deploy:
