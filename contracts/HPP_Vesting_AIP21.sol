@@ -6,7 +6,7 @@
 pragma solidity ^0.8.28;
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import {VestingWallet} from "@openzeppelin/contracts/finance/VestingWallet.sol";
+import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
@@ -16,6 +16,7 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
  * @dev Secure vesting implementation using OpenZeppelin VestingWallet
  */
 contract HPP_Vesting_AIP21 is Ownable, ReentrancyGuard {
+    using EnumerableSet for EnumerableSet.AddressSet;
     
     /// @notice Vesting schedule information
     struct VestingSchedule {
@@ -38,9 +39,9 @@ contract HPP_Vesting_AIP21 is Ownable, ReentrancyGuard {
     
     /// @notice Vesting schedule mapping
     mapping(address => VestingSchedule) public vestingSchedules;
-    
-    /// @notice List of vesting beneficiaries
-    address[] public beneficiaries;
+
+    /// @notice Set of vesting beneficiaries (no duplicates)
+    EnumerableSet.AddressSet private beneficiaries;
     
     /// @notice Total vesting token amount
     uint256 public totalVestingAmount;
@@ -59,7 +60,7 @@ contract HPP_Vesting_AIP21 is Ownable, ReentrancyGuard {
     
     /// @notice Event emitted when a vesting schedule is revoked
     event VestingScheduleRevoked(address indexed beneficiary);
-    
+
     /**
      * @notice Contract constructor
      * @param _hppToken HPP token contract address
@@ -100,6 +101,7 @@ contract HPP_Vesting_AIP21 is Ownable, ReentrancyGuard {
         require(_beneficiary != address(0), "Invalid beneficiary address");
         require(_amount > 0, "Amount must be greater than 0");
         require(!vestingSchedules[_beneficiary].isActive, "Vesting schedule already exists");
+        require(vestingStarted && vestingStartTime != 0, "Vesting not started");
         vestingSchedules[_beneficiary] = VestingSchedule({
             beneficiary: _beneficiary,
             totalAmount: _amount,
@@ -108,7 +110,7 @@ contract HPP_Vesting_AIP21 is Ownable, ReentrancyGuard {
             duration: VESTING_DURATION,
             isActive: true
         });
-        beneficiaries.push(_beneficiary);
+        beneficiaries.add(_beneficiary);
         totalVestingAmount += _amount;
         emit VestingScheduleAdded(_beneficiary, _amount, vestingStartTime);
     }
@@ -194,7 +196,7 @@ contract HPP_Vesting_AIP21 is Ownable, ReentrancyGuard {
      * @return Array of vesting beneficiary addresses
      */
     function getBeneficiaries() external view returns (address[] memory) {
-        return beneficiaries;
+        return beneficiaries.values();
     }
     
     /**
@@ -204,8 +206,8 @@ contract HPP_Vesting_AIP21 is Ownable, ReentrancyGuard {
      */
     function revokeVestingSchedule(address _beneficiary) external onlyOwner {
         require(vestingSchedules[_beneficiary].isActive, "No active vesting schedule");
-        
         vestingSchedules[_beneficiary].isActive = false;
+        beneficiaries.remove(_beneficiary);
         
         emit VestingScheduleRevoked(_beneficiary);
     }
