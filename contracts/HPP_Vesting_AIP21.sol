@@ -43,8 +43,10 @@ contract HPP_Vesting_AIP21 is Ownable, ReentrancyGuard {
     /// @notice Set of vesting beneficiaries (no duplicates)
     EnumerableSet.AddressSet private beneficiaries;
     
-    /// @notice Total vesting token amount
+    /// @notice Total assigned amount = claimed + unclaimed (across active obligations)
     uint256 public totalVestingAmount;
+
+    
     
     /// @notice Whether vesting has started
     bool public vestingStarted;
@@ -140,7 +142,7 @@ contract HPP_Vesting_AIP21 is Ownable, ReentrancyGuard {
         
         uint256 claimableAmount = getClaimableAmount(msg.sender);
         require(claimableAmount > 0, "No tokens to claim");
-        
+
         schedule.claimedAmount += claimableAmount;
         
         require(hppToken.transfer(msg.sender, claimableAmount), "Token transfer failed");
@@ -199,6 +201,8 @@ contract HPP_Vesting_AIP21 is Ownable, ReentrancyGuard {
         return beneficiaries.values();
     }
     
+    
+
     /**
      * @notice Revoke a vesting schedule (for emergency use)
      * @param _beneficiary Vesting recipient address
@@ -206,11 +210,17 @@ contract HPP_Vesting_AIP21 is Ownable, ReentrancyGuard {
      */
     function revokeVestingSchedule(address _beneficiary) external onlyOwner {
         require(vestingSchedules[_beneficiary].isActive, "No active vesting schedule");
-        vestingSchedules[_beneficiary].isActive = false;
-        beneficiaries.remove(_beneficiary);
+        VestingSchedule storage s = vestingSchedules[_beneficiary];
+        uint256 total = s.totalAmount;
+        if (total > 0) {
+            totalVestingAmount -= total;
+        }
+        s.isActive = false;
         
         emit VestingScheduleRevoked(_beneficiary);
     }
+
+    
     
     /**
      * @notice Withdraw remaining tokens from the contract (for emergency use)
