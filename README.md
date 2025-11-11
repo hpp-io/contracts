@@ -5,7 +5,7 @@
 * HPP_Vesting_AIP21.sol : 24-month vesting program for AIP-21 voters
 * HPP_Migration_AERGO.sol : AERGO to HPP Migration Contract
 * HPP_Migration_AQT.sol : AQT to HPP Migration Contract
-* hpp-custody-staking.sol : Custody staking contract with cooldown period for unstaking
+* HPP_Custody_Staking.sol : Custody staking contract with cooldown period for unstaking
 
 
 ## How to Test:
