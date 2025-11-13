@@ -11,7 +11,7 @@
 ## How to Test:
 
 ```shell
-# Run HPP Custody Staking tests
+# TESTS HPP Custody Staking (before deploying HPP Custody Staking)
 npx hardhat test test/HPPCustodyStaking.test.js
 ```
 
