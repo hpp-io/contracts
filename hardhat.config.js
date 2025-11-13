@@ -45,8 +45,8 @@ module.exports = {
     apiKey: {
         sepolia: ETHERSCAN_API_KEY,
         mainnet: ETHERSCAN_API_KEY,
-        hpp_sepolia: ETHERSCAN_API_KEY || "dummy",
-        hpp_mainnet: ETHERSCAN_API_KEY || "dummy"
+        hpp_sepolia: ETHERSCAN_API_KEY,
+        hpp_mainnet: ETHERSCAN_API_KEY
     },
     customChains: [
       {
@@ -68,6 +68,6 @@ module.exports = {
     ]
   },
   sourcify: {
-    enabled: false
+    enabled: true
   }
 };
