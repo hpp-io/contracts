@@ -306,15 +306,14 @@ describe("HPPCustodyStaking", function () {
       expect(await stakingContract.cooldownCount(user1.address)).to.equal(1); // One entry remaining
     });
 
-    it("Should return 0 if no cooldown entries", async function () {
+    it("Should revert if no cooldown entries", async function () {
       await time.increase(COOLDOWN_DURATION + 1);
       await mockToken.connect(custodyWallet).approve(await stakingContract.getAddress(), unstakeAmount);
       await stakingContract.connect(user1).withdraw();
 
-      // Try to withdraw again
-      const tx = await stakingContract.connect(user1).withdraw();
-      const receipt = await tx.wait();
-      expect(receipt.status).to.equal(1); // Should succeed but do nothing
+      // Try to withdraw again - should revert
+      await expect(stakingContract.connect(user1).withdraw())
+        .to.be.revertedWithCustomError(stakingContract, "CooldownNotFinished");
     });
   });
 

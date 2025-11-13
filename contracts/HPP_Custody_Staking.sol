@@ -188,7 +188,7 @@ contract HPPCustodyStaking is Ownable2Step, Pausable, ReentrancyGuard {
         uint256 firstIdx = _firstValidIndex[msg.sender];
         uint256 n = list.length;
         
-        if (firstIdx >= n) return 0; // All items already processed
+        if (firstIdx >= n) revert CooldownNotFinished(); // No cooldown entries
 
         uint256 nowTs = block.timestamp;
         uint256 toTransfer;
