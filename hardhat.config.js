@@ -53,8 +53,16 @@ module.exports = {
         network: "hpp_sepolia",
         chainId: 181228,
         urls: {
-          apiURL: process.env.HPP_SEPOLIA_EXPLORER_API_URL || "https://sepolia-explorer.hpp.io/api",
-          browserURL: process.env.HPP_SEPOLIA_EXPLORER_URL || "https://sepolia-explorer.hpp.io"
+          apiURL: process.env.HPP_SEPOLIA_EXPLORER_API_URL,
+          browserURL: process.env.HPP_SEPOLIA_EXPLORER_URL
+        }
+      },
+      {
+        network: "hpp_mainnet",
+        chainId: 190415,
+        urls: {
+          apiURL: process.env.HPP_MAINNET_EXPLORER_API_URL,
+          browserURL: process.env.HPP_MAINNET_EXPLORER_URL
         }
       }
     ]

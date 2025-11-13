@@ -1,4 +1,5 @@
 const { ethers } = require("hardhat");
+require("dotenv").config();
 
 async function main() {
   console.log("Deploying HPP Custody Staking contract...");
@@ -8,14 +9,20 @@ async function main() {
   console.log("Account balance:", ethers.formatEther(await ethers.provider.getBalance(deployer.address)), "ETH");
 
   // ============================================
-  // Configuration - Update these values before deployment
+  // Configuration - Load from environment variables
   // ============================================
   
   // HPP Token contract address (required)
-  const HPP_TOKEN_ADDRESS = "0x8ebCaf48D2D91b8CEcF1668A4519823881Bf8fc3"; // Enter the deployed HPP token address
+  const HPP_TOKEN_ADDRESS = process.env.HPP_TOKEN_ADDRESS;
+  if (!HPP_TOKEN_ADDRESS) {
+    throw new Error("HPP_TOKEN_ADDRESS is not set in .env file");
+  }
   
   // Custody wallet address (required) - This wallet will hold the staked tokens
-  const CUSTODY_WALLET = "0x662c813ff91445b94c32b139ea8ce93a160b9c8b"; // Enter the custody wallet address
+  const CUSTODY_WALLET = process.env.CUSTODY_WALLET;
+  if (!CUSTODY_WALLET) {
+    throw new Error("CUSTODY_WALLET is not set in .env file");
+  }
   
   // Cooldown duration in seconds (required)
   const COOLDOWN_DURATION = 7 * 24 * 60 * 60; // Default: 7 days (604800 seconds)
