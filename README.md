@@ -5,7 +5,15 @@
 * HPP_Vesting_AIP21.sol : 24-month vesting program for AIP-21 voters
 * HPP_Migration_AERGO.sol : AERGO to HPP Migration Contract
 * HPP_Migration_AQT.sol : AQT to HPP Migration Contract
+* HPP_Custody_Staking.sol : Custody staking contract with cooldown period for unstaking
 
+
+## How to Test:
+
+```shell
+# TESTS HPP Custody Staking (before deploying HPP Custody Staking)
+npx hardhat test test/HPPCustodyStaking.test.js
+```
 
 ## How to Deploy:
 
@@ -17,6 +25,10 @@ npx hardhat run scripts/HPP_L1_Token.deploy.js --network sepolia
 # Deploy HPP Vesting AIP-21 (after deploying HPP Token)
 npx hardhat run scripts/HPP_Vesting_AIP21.deploy.js --network mainnet
 npx hardhat run scripts/HPP_Vesting_AIP21.deploy.js --network sepolia
+
+# Deploy HPP Custody Staking (after deploying HPP Token)
+npx hardhat run scripts/HPP_Custody_Staking.deploy.js --network hpp_mainnet
+npx hardhat run scripts/HPP_Custody_Staking.deploy.js --network hpp_sepolia
 ```
 
 ## How to Contract Verify:
@@ -27,3 +39,7 @@ npx hardhat verify --network mainnet <DEPLOYED CONTRACT ADDRESS> <RECIPIENT ADDR
 npx hardhat verify --network sepolia <DEPLOYED CONTRACT ADDRESS> <RECIPIENT ADDRESS> <OWNER ADDRESS>
 npx hardhat verify --network hpp_sepolia <DEPLOYED CONTRACT ADDRESS> <Constructor arguments>
 npx hardhat verify --network hpp_mainnet <DEPLOYED CONTRACT ADDRESS> <Constructor arguments>
+
+# Verify HPP Custody Staking
+npx hardhat verify --network hpp_mainnet <DEPLOYED CONTRACT ADDRESS> <HPP_TOKEN_ADDRESS> <CUSTODY_WALLET> <COOLDOWN_DURATION>
+npx hardhat verify --network hpp_sepolia <DEPLOYED CONTRACT ADDRESS> <HPP_TOKEN_ADDRESS> <CUSTODY_WALLET> <COOLDOWN_DURATION>

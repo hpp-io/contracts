@@ -13,7 +13,15 @@ const ETHERSCAN_API_MAINNET_URL = "https://api.etherscan.io/api";
 const ETHERSCAN_API_SEPOLIA_URL = "https://api-sepolia.etherscan.io/api";
 
 module.exports = {
-  solidity: "0.8.28",
+  solidity: {
+    version: "0.8.28",
+    settings: {
+      optimizer: {
+        enabled: true,
+        runs: 200
+      }
+    }
+  },
   networks: {
     mainnet: {
       url: MAINNET_RPC_URL,
@@ -36,12 +44,28 @@ module.exports = {
   etherscan: {
     apiKey: {
         sepolia: ETHERSCAN_API_KEY,
-        mainnet: ETHERSCAN_API_KEY
+        mainnet: ETHERSCAN_API_KEY,
+        hpp_sepolia: ETHERSCAN_API_KEY,
+        hpp_mainnet: ETHERSCAN_API_KEY
     },
-    url: {
-      sepolia: ETHERSCAN_API_SEPOLIA_URL,
-      mainnet: ETHERSCAN_API_MAINNET_URL
-    }
+    customChains: [
+      {
+        network: "hpp_sepolia",
+        chainId: 181228,
+        urls: {
+          apiURL: process.env.HPP_SEPOLIA_EXPLORER_API_URL,
+          browserURL: process.env.HPP_SEPOLIA_EXPLORER_URL
+        }
+      },
+      {
+        network: "hpp_mainnet",
+        chainId: 190415,
+        urls: {
+          apiURL: process.env.HPP_MAINNET_EXPLORER_API_URL,
+          browserURL: process.env.HPP_MAINNET_EXPLORER_URL
+        }
+      }
+    ]
   },
   sourcify: {
     enabled: true
