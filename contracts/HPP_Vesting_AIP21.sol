@@ -5,7 +5,8 @@
 // Compatible with OpenZeppelin Contracts ^5.0.0
 pragma solidity ^0.8.28;
 
-import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
@@ -17,6 +18,7 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
  */
 contract HPP_Vesting_AIP21 is Ownable, ReentrancyGuard {
     using EnumerableSet for EnumerableSet.AddressSet;
+    using SafeERC20 for IERC20;
     
     /// @notice Vesting schedule information
     struct VestingSchedule {
@@ -29,7 +31,7 @@ contract HPP_Vesting_AIP21 is Ownable, ReentrancyGuard {
     }
     
     /// @notice HPP token contract
-    ERC20 public immutable hppToken;
+    IERC20 public immutable hppToken;
     
     /// @notice Vesting start time (based on TGE)
     uint256 public vestingStartTime;
@@ -72,7 +74,7 @@ contract HPP_Vesting_AIP21 is Ownable, ReentrancyGuard {
         require(_hppToken != address(0), "Invalid token address");
         require(_initialOwner != address(0), "Invalid owner address");
         
-        hppToken = ERC20(_hppToken);
+        hppToken = IERC20(_hppToken);
     }
     
     /**
@@ -145,7 +147,7 @@ contract HPP_Vesting_AIP21 is Ownable, ReentrancyGuard {
 
         schedule.claimedAmount += claimableAmount;
         
-        require(hppToken.transfer(msg.sender, claimableAmount), "Token transfer failed");
+        hppToken.safeTransfer(msg.sender, claimableAmount);
         
         emit TokensClaimed(msg.sender, claimableAmount);
     }
@@ -216,7 +218,7 @@ contract HPP_Vesting_AIP21 is Ownable, ReentrancyGuard {
             totalVestingAmount -= total;
         }
         s.isActive = false;
-        
+        beneficiaries.remove(_beneficiary);
         emit VestingScheduleRevoked(_beneficiary);
     }
 
@@ -231,7 +233,7 @@ contract HPP_Vesting_AIP21 is Ownable, ReentrancyGuard {
         require(_amount > 0, "Amount must be greater than 0");
         require(_amount <= hppToken.balanceOf(address(this)), "Insufficient balance");
         
-        require(hppToken.transfer(owner(), _amount), "Token transfer failed");
+        hppToken.safeTransfer(owner(), _amount);
     }
     
     /**
@@ -242,6 +244,6 @@ contract HPP_Vesting_AIP21 is Ownable, ReentrancyGuard {
         uint256 balance = hppToken.balanceOf(address(this));
         require(balance > 0, "No tokens to withdraw");
         
-        require(hppToken.transfer(owner(), balance), "Token transfer failed");
+        hppToken.safeTransfer(owner(), balance);
     }
 }
