@@ -9,8 +9,8 @@ async function main() {
   const [deployer] = await ethers.getSigners();
   console.log("Deploying with account:", deployer.address);
 
-  // HPP token contract address (replace with deployed HPP token address)
-  const HPP_TOKEN_ADDRESS = "0x..."; // Enter the deployed HPP token address
+  // HPP token contract address
+  const HPP_TOKEN_ADDRESS = process.env.HPP_TOKEN_ADDRESS;
 
   // Vesting contract owner (change to multisig wallet or DAO address for production)
   const VESTING_OWNER = deployer.address; // Change to multisig wallet address for production
@@ -103,8 +103,7 @@ async function main() {
     }
     const tx = await vestingContract.addVestingSchedules(
       batchBeneficiaries,
-      batchAmounts,
-      { gasLimit: 15_000_000 }
+      batchAmounts
     );
     await tx.wait();
     console.log(
