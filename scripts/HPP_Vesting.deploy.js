@@ -4,36 +4,71 @@ const path = require("path");
 const parse = require("csv-parse/sync");
 
 async function main() {
-  console.log("Deploying HPP_Vesting_AIP21 contract...");
+  console.log("Deploying HPP_Vesting contract...");
 
   const [deployer] = await ethers.getSigners();
   console.log("Deploying with account:", deployer.address);
 
-  // HPP token contract address (replace with deployed HPP token address)
-  const HPP_TOKEN_ADDRESS = "0x..."; // Enter the deployed HPP token address
+  // HPP token contract address
+  const HPP_TOKEN_ADDRESS = process.env.HPP_TOKEN_ADDRESS;
+  if (!HPP_TOKEN_ADDRESS) {
+    throw new Error("HPP_TOKEN_ADDRESS environment variable is required");
+  }
 
   // Vesting contract owner (change to multisig wallet or DAO address for production)
   const VESTING_OWNER = deployer.address; // Change to multisig wallet address for production
 
-  const HPPVestingAIP21 = await ethers.getContractFactory("HPP_Vesting_AIP21");
-  const vestingContract = await HPPVestingAIP21.deploy(
+  // Vesting start time (Unix timestamp in seconds)
+  // Default: deployment timestamp (current time)
+  // Can be overridden via VESTING_START_TIME environment variable
+  const VESTING_START_TIME = process.env.VESTING_START_TIME 
+    ? parseInt(process.env.VESTING_START_TIME, 10)
+    : Math.floor(Date.now() / 1000);
+
+  // Vesting duration (in days)
+  // Default: 730 days (24 months)
+  const VESTING_DURATION_DAYS = process.env.VESTING_DURATION
+    ? parseInt(process.env.VESTING_DURATION, 10)
+    : 730; // 730 days = 24 months
+
+  // Convert days to seconds
+  const VESTING_DURATION = VESTING_DURATION_DAYS * 24 * 60 * 60; // days * hours * minutes * seconds
+
+  // Validate values
+  if (isNaN(VESTING_START_TIME) || VESTING_START_TIME <= 0) {
+    throw new Error(`Invalid VESTING_START_TIME: ${process.env.VESTING_START_TIME || 'undefined'}`);
+  }
+  if (isNaN(VESTING_DURATION_DAYS) || VESTING_DURATION_DAYS <= 0) {
+    throw new Error(`Invalid VESTING_DURATION: ${process.env.VESTING_DURATION || 'undefined'}`);
+  }
+
+  console.log("Vesting Start Time:", VESTING_START_TIME);
+  console.log("Vesting Duration:", VESTING_DURATION_DAYS, "days (" + VESTING_DURATION + " seconds)");
+
+  // Vesting name/identifier (default: empty string, can be overridden via VESTING_NAME)
+  const VESTING_NAME = process.env.VESTING_NAME;
+
+  console.log("Vesting Name:", VESTING_NAME);
+
+  const HPPVesting = await ethers.getContractFactory("HPP_Vesting");
+  const vestingContract = await HPPVesting.deploy(
     HPP_TOKEN_ADDRESS,
-    VESTING_OWNER
+    VESTING_OWNER,
+    VESTING_START_TIME,
+    VESTING_DURATION,
+    VESTING_NAME
   );
 
   await vestingContract.waitForDeployment();
   console.log(
-    "HPP_Vesting_AIP21 deployed to:",
+    "HPP_Vesting deployed to:",
     await vestingContract.getAddress()
   );
   console.log("HPP Token address:", HPP_TOKEN_ADDRESS);
   console.log("Vesting owner:", VESTING_OWNER);
-
-  // Start vesting (based on TGE)
-  console.log("Starting vesting...");
-  const startVestingTx = await vestingContract.startVesting();
-  await startVestingTx.wait();
-  console.log("Vesting started at:", await vestingContract.vestingStartTime());
+  console.log("Vesting start time:", (await vestingContract.vestingStartTime()).toString());
+  console.log("Vesting duration:", (await vestingContract.vestingDuration()).toString(), "seconds");
+  console.log("Vesting name:", (await vestingContract.vestingName()));
 
   // Read vesting beneficiaries and amounts from CSV (vesting_beneficiaries/aip21_beneficiaries.csv)
   const csvPath = path.join(
@@ -118,10 +153,12 @@ async function main() {
     ethers.formatEther(await vestingContract.totalVestingAmount()),
     "HPP"
   );
+  const vestingDurationSeconds = await vestingContract.vestingDuration();
+  const vestingDurationDays = Number(vestingDurationSeconds) / (24 * 60 * 60);
   console.log(
     "Vesting duration:",
-    await vestingContract.VESTING_DURATION(),
-    "seconds (24 months)"
+    vestingDurationDays,
+    "days (" + vestingDurationSeconds.toString() + " seconds)"
   );
 }
 
