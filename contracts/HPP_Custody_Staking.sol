@@ -36,6 +36,7 @@ contract HPPCustodyStaking is Ownable2Step, Pausable, ReentrancyGuard {
     error MaxCooldownEntriesReached(uint256 current, uint256 maxAllowed);
     error InvalidCooldownIndex();
     error OwnershipRenouncementDisabled();
+    error NotAuthorizedOperator();
 
     // ───────────── Events ─────────────
     event Staked(address indexed user, uint256 amount, address indexed custody);
@@ -48,6 +49,8 @@ contract HPPCustodyStaking is Ownable2Step, Pausable, ReentrancyGuard {
     event Rescue(address indexed token, address indexed to, uint256 amount);
     event MaxGlobalCooldownEntriesUpdated(uint16 oldVal, uint16 newVal);
     event CooldownArrayCompacted(address indexed user, uint256 newLength);
+    event StakerOperatorUpdated(address indexed operator, bool allowed);
+    event StakedFor(address indexed operator, address indexed user, uint256 amount, address indexed custody);
 
     // ───────────── Storage ─────────────
     IERC20 public immutable stakingToken;   // Token to be staked (HPP)
@@ -60,6 +63,9 @@ contract HPPCustodyStaking is Ownable2Step, Pausable, ReentrancyGuard {
 
     // Global cooldown entry limit (applied equally to all users)
     uint16 public maxGlobalCooldownEntries = 50;
+
+    /// @dev Authorized callers that can invoke stakeFor (e.g. airdrop contract).
+    mapping(address => bool) public isStakerOperator;
 
     struct Cooldown {
         uint256 amount;
@@ -131,6 +137,18 @@ contract HPPCustodyStaking is Ownable2Step, Pausable, ReentrancyGuard {
         revert OwnershipRenouncementDisabled();
     }
 
+    /// @notice Set or revoke an address as staker operator (e.g. airdrop contract). Only operator can call stakeFor.
+    function setStakerOperator(address operator, bool allowed) external onlyOwner {
+        if (operator == address(0)) revert ZeroAddress();
+        isStakerOperator[operator] = allowed;
+        emit StakerOperatorUpdated(operator, allowed);
+    }
+
+    modifier onlyStakerOperator() {
+        if (!isStakerOperator[msg.sender]) revert NotAuthorizedOperator();
+        _;
+    }
+
     // ───────────── Stake ─────────────
     /**
      * @notice Staking: user -> contract -> custody (same transaction)
@@ -150,6 +168,31 @@ contract HPPCustodyStaking is Ownable2Step, Pausable, ReentrancyGuard {
         stakingToken.safeTransfer(custodyWallet, amount);
 
         emit Staked(msg.sender, amount, custodyWallet);
+        emit CustodyReceived(amount, custodyWallet);
+    }
+
+    /**
+     * @notice Stake on behalf of `user` using tokens owned by msg.sender (e.g. airdrop contract).
+     * @dev msg.sender must be set as staker operator and must approve stakingToken to this contract beforehand.
+     * @param user Beneficiary of the stake (EOA); stakedBalance and unstake/withdraw are attributed to this address.
+     * @param amount Amount to stake.
+     */
+    function stakeFor(address user, uint256 amount) external whenNotPaused nonReentrant onlyStakerOperator {
+        if (user == address(0)) revert ZeroAddress();
+        if (amount == 0) revert ZeroAmount();
+
+        // 1) operator (e.g. airdrop) -> this contract
+        stakingToken.safeTransferFrom(msg.sender, address(this), amount);
+
+        // 2) accounting credited to user (EOA), not to msg.sender (operator CA)
+        stakedBalance[user] += amount;
+        totalStaked += amount;
+
+        // 3) this contract -> custody
+        stakingToken.safeTransfer(custodyWallet, amount);
+
+        emit Staked(user, amount, custodyWallet);
+        emit StakedFor(msg.sender, user, amount, custodyWallet);
         emit CustodyReceived(amount, custodyWallet);
     }
     
