@@ -9,6 +9,14 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /**
+ * @title IStakingContract
+ * @notice Interface for staking contract's stakeFor function
+ */
+interface IStakingContract {
+    function stakeFor(address user, uint256 amount) external;
+}
+
+/**
  * @title HPP_Vesting
  * @notice Linear vesting contract for token distribution programs
  * @dev Reusable vesting contract with configurable start time and duration.
@@ -39,6 +47,10 @@ contract HPP_Vesting is Ownable, ReentrancyGuard {
     /// @notice Vesting name/identifier
     string public vestingName;
     
+    /// @notice Staking contract address (optional, for claimAndStake functionality)
+    /// @dev If set to address(0), claimAndStake is disabled
+    IStakingContract public stakingContract;
+    
     /// @notice Vesting schedule mapping
     mapping(address => VestingSchedule) public vestingSchedules;
 
@@ -54,8 +66,14 @@ contract HPP_Vesting is Ownable, ReentrancyGuard {
     /// @notice Event emitted when tokens are claimed
     event TokensClaimed(address indexed beneficiary, uint256 amount);
     
+    /// @notice Event emitted when tokens are claimed and staked
+    event TokensClaimedAndStaked(address indexed beneficiary, uint256 amount, address indexed stakingContract);
+    
     /// @notice Event emitted when a vesting schedule is revoked
     event VestingScheduleRevoked(address indexed beneficiary);
+    
+    /// @notice Event emitted when staking contract is set
+    event StakingContractSet(address indexed oldStakingContract, address indexed newStakingContract);
 
     /**
      * @notice Contract constructor
@@ -142,6 +160,42 @@ contract HPP_Vesting is Ownable, ReentrancyGuard {
     }
     
     /**
+     * @notice Claim vested tokens and automatically stake them
+     * @dev Only callable by the vesting beneficiary. Requires staking contract to be set and enabled.
+     *      This contract must be set as a staker operator in the staking contract.
+     *      Follows CEI pattern: Checks -> Effects -> Interactions
+     */
+    function claimAndStake() external nonReentrant {
+        VestingSchedule storage schedule = vestingSchedules[msg.sender];
+        require(schedule.isActive, "No active vesting schedule");
+        require(block.timestamp >= vestingStartTime, "Vesting not started yet");
+        
+        // Store staking contract in local variable to prevent changes during execution
+        IStakingContract currentStakingContract = stakingContract;
+        require(address(currentStakingContract) != address(0), "Staking contract not set");
+        
+        uint256 claimableAmount = getClaimableAmount(msg.sender);
+        require(claimableAmount > 0, "No tokens to claim");
+
+        // Effects: Update accounting FIRST (CEI pattern)
+        schedule.claimedAmount += claimableAmount;
+        
+        // Interactions: Approve and stake (after effects)
+        // Tokens are already in this contract, approve staking contract to spend them
+        SafeERC20.forceApprove(hppToken, address(currentStakingContract), claimableAmount);
+        
+        // Call stakeFor on staking contract (this contract must be authorized as operator)
+        // stakeFor will call safeTransferFrom to transfer tokens from this contract to staking contract
+        currentStakingContract.stakeFor(msg.sender, claimableAmount);
+        
+        // Reset approval to zero for gas optimization
+        SafeERC20.forceApprove(hppToken, address(currentStakingContract), 0);
+        
+        emit TokensClaimed(msg.sender, claimableAmount);
+        emit TokensClaimedAndStaked(msg.sender, claimableAmount, address(currentStakingContract));
+    }
+    
+    /**
      * @notice Calculate the claimable token amount for a specific address
      * @param _beneficiary Vesting recipient address
      * @return Claimable token amount
@@ -190,6 +244,18 @@ contract HPP_Vesting is Ownable, ReentrancyGuard {
      */
     function getBeneficiaries() external view returns (address[] memory) {
         return beneficiaries.values();
+    }
+    
+    /**
+     * @notice Set staking contract address
+     * @param _stakingContract Address of the staking contract (set to address(0) to disable)
+     * @dev Only callable by the owner. This contract must be set as a staker operator in the staking contract.
+     *      To disable staking, set to address(0).
+     */
+    function setStakingContract(address _stakingContract) external onlyOwner {
+        address oldStakingContract = address(stakingContract);
+        stakingContract = IStakingContract(_stakingContract);
+        emit StakingContractSet(oldStakingContract, _stakingContract);
     }
     
     /**
