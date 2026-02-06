@@ -174,7 +174,9 @@ contract HPP_Vesting is Ownable, ReentrancyGuard {
         IStakingContract currentStakingContract = stakingContract;
         require(address(currentStakingContract) != address(0), "Staking contract not set");
         
-        uint256 claimableAmount = getClaimableAmount(msg.sender);
+        // Use beneficiary from schedule for consistency
+        address beneficiary = schedule.beneficiary;
+        uint256 claimableAmount = getClaimableAmount(beneficiary);
         require(claimableAmount > 0, "No tokens to claim");
 
         // Effects: Update accounting FIRST (CEI pattern)
@@ -186,13 +188,14 @@ contract HPP_Vesting is Ownable, ReentrancyGuard {
         
         // Call stakeFor on staking contract (this contract must be authorized as operator)
         // stakeFor will call safeTransferFrom to transfer tokens from this contract to staking contract
-        currentStakingContract.stakeFor(msg.sender, claimableAmount);
+        // beneficiary address is passed to stakeFor, so stakedBalance[beneficiary] will be credited
+        currentStakingContract.stakeFor(beneficiary, claimableAmount);
         
         // Reset approval to zero for gas optimization
         SafeERC20.forceApprove(hppToken, address(currentStakingContract), 0);
         
-        emit TokensClaimed(msg.sender, claimableAmount);
-        emit TokensClaimedAndStaked(msg.sender, claimableAmount, address(currentStakingContract));
+        emit TokensClaimed(beneficiary, claimableAmount);
+        emit TokensClaimedAndStaked(beneficiary, claimableAmount, address(currentStakingContract));
     }
     
     /**
