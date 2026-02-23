@@ -25,25 +25,22 @@ async function main() {
     ? parseInt(process.env.VESTING_START_TIME, 10)
     : Math.floor(Date.now() / 1000);
 
-  // Vesting duration (in days)
-  // Default: 730 days (24 months)
-  const VESTING_DURATION_DAYS = process.env.VESTING_DURATION
+  // Vesting duration (in seconds)
+  // Default: 63072000 seconds (730 days = 24 months)
+  const VESTING_DURATION = process.env.VESTING_DURATION
     ? parseInt(process.env.VESTING_DURATION, 10)
-    : 730; // 730 days = 24 months
-
-  // Convert days to seconds
-  const VESTING_DURATION = VESTING_DURATION_DAYS * 24 * 60 * 60; // days * hours * minutes * seconds
+    : 63072000; // 730 days * 24 hours * 60 minutes * 60 seconds
 
   // Validate values
   if (isNaN(VESTING_START_TIME) || VESTING_START_TIME <= 0) {
     throw new Error(`Invalid VESTING_START_TIME: ${process.env.VESTING_START_TIME || 'undefined'}`);
   }
-  if (isNaN(VESTING_DURATION_DAYS) || VESTING_DURATION_DAYS <= 0) {
+  if (isNaN(VESTING_DURATION) || VESTING_DURATION <= 0) {
     throw new Error(`Invalid VESTING_DURATION: ${process.env.VESTING_DURATION || 'undefined'}`);
   }
 
-  console.log("Vesting Start Time:", VESTING_START_TIME);
-  console.log("Vesting Duration:", VESTING_DURATION_DAYS, "days (" + VESTING_DURATION + " seconds)");
+  console.log("Vesting Start Time:", VESTING_START_TIME, "seconds");
+  console.log("Vesting Duration:", VESTING_DURATION, "seconds");
 
   // Vesting name/identifier (default: empty string, can be overridden via VESTING_NAME)
   const VESTING_NAME = process.env.VESTING_NAME;
@@ -154,11 +151,10 @@ async function main() {
     "HPP"
   );
   const vestingDurationSeconds = await vestingContract.vestingDuration();
-  const vestingDurationDays = Number(vestingDurationSeconds) / (24 * 60 * 60);
   console.log(
     "Vesting duration:",
-    vestingDurationDays,
-    "days (" + vestingDurationSeconds.toString() + " seconds)"
+    vestingDurationSeconds.toString(),
+    "seconds"
   );
 }
 
