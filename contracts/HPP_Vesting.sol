@@ -205,7 +205,7 @@ contract HPP_Vesting is Ownable, ReentrancyGuard {
             totalVestingAmount -= total;
         }
         s.isActive = false;
-        
+        beneficiaries.remove(_beneficiary);
         emit VestingScheduleRevoked(_beneficiary);
     }
 
