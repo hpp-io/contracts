@@ -1,4 +1,5 @@
 const { ethers } = require('hardhat');
+const hre = require('hardhat');
 const fs = require('fs');
 const path = require('path');
 const parse = require('csv-parse/sync');
@@ -130,6 +131,16 @@ async function main() {
   console.log('Total vesting amount:', ethers.formatEther(await vestingContract.totalVestingAmount()), 'HPP');
   const vestingDurationSeconds = await vestingContract.vestingDuration();
   console.log('Vesting duration:', vestingDurationSeconds.toString(), 'seconds');
+
+  // Output verify command
+  const contractAddress = await vestingContract.getAddress();
+  const networkName = hre.network.name;
+
+  console.log('\n=== Contract Verification Command ===');
+  console.log(
+    `npx hardhat verify --network ${networkName} --contract contracts/HPP_Vesting.sol:HPP_Vesting ${contractAddress} ${HPP_TOKEN_ADDRESS} ${VESTING_OWNER} ${VESTING_START_TIME} ${VESTING_DURATION} ${VESTING_NAME}`,
+  );
+  console.log('=====================================\n');
 }
 
 main()
