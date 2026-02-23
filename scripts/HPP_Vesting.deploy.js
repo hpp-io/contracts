@@ -42,7 +42,7 @@ async function main() {
   console.log('Vesting Duration:', VESTING_DURATION, 'seconds');
 
   // Vesting name/identifier (default: empty string, can be overridden via VESTING_NAME)
-  const VESTING_NAME = process.env.VESTING_NAME;
+  const VESTING_NAME = process.env.VESTING_NAME || '';
 
   console.log('Vesting Name:', VESTING_NAME);
 
@@ -65,42 +65,31 @@ async function main() {
 
   // Read vesting beneficiaries and amounts from CSV (vesting_beneficiaries/aip21_beneficiaries.csv)
   const csvPath = path.join(__dirname, 'vesting_beneficiaries/aip21_beneficiaries.csv');
-  let beneficiaries = [];
-  let amounts = [];
-  if (fs.existsSync(csvPath)) {
-    const csvData = fs.readFileSync(csvPath, 'utf8');
-    const records = parse.parse(csvData, {
-      columns: true,
-      skip_empty_lines: true,
-      trim: true,
-    });
-    // Deduplicate (case-insensitive) and sum amounts
-    const acc = new Map();
-    for (const row of records) {
-      const addr = String(row.address).trim();
-      if (!addr) continue;
-      const key = addr.toLowerCase();
-      const amtStr = String(row.amount).replace(/,/g, '').trim();
-      const val = ethers.parseEther(amtStr);
-      acc.set(key, (acc.get(key) ?? 0n) + val);
-    }
-    beneficiaries = Array.from(acc.keys()).map((k) => ethers.getAddress(k));
-    amounts = Array.from(acc.values());
-    console.log('CSV unique beneficiaries:', beneficiaries.length);
-  } else {
-    // Example data (used if CSV file does not exist)
-    beneficiaries = [
-      '0x1234567890123456789012345678901234567890',
-      '0x2345678901234567890123456789012345678901',
-      '0x3456789012345678901234567890123456789012',
-    ];
-    amounts = [ethers.parseEther('10000'), ethers.parseEther('5000'), ethers.parseEther('2500')];
-    console.log('Sample beneficiaries:', beneficiaries);
-    console.log(
-      'Sample amounts:',
-      amounts.map((a) => ethers.formatEther(a)),
-    );
+  if (!fs.existsSync(csvPath)) {
+    throw new Error(`CSV file not found: ${csvPath}`);
   }
+
+  const csvData = fs.readFileSync(csvPath, 'utf8');
+  const records = parse.parse(csvData, {
+    columns: true,
+    skip_empty_lines: true,
+    trim: true,
+  });
+  
+  // Deduplicate (case-insensitive) and sum amounts
+  const acc = new Map();
+  for (const row of records) {
+    const addr = String(row.address).trim();
+    if (!addr) continue;
+    const key = addr.toLowerCase();
+    const amtStr = String(row.amount).replace(/,/g, '').trim();
+    const val = ethers.parseEther(amtStr);
+    acc.set(key, (acc.get(key) ?? 0n) + val);
+  }
+  
+  const beneficiaries = Array.from(acc.keys()).map((k) => ethers.getAddress(k));
+  const amounts = Array.from(acc.values());
+  console.log('CSV unique beneficiaries:', beneficiaries.length);
 
   // Add schedules in batches to avoid block gas limit
   const BATCH = 20;
@@ -136,9 +125,11 @@ async function main() {
   const contractAddress = await vestingContract.getAddress();
   const networkName = hre.network.name;
 
+  const vestingName = `"${VESTING_NAME || ''}"`;
+
   console.log('\n=== Contract Verification Command ===');
   console.log(
-    `npx hardhat verify --network ${networkName} --contract contracts/HPP_Vesting.sol:HPP_Vesting ${contractAddress} ${HPP_TOKEN_ADDRESS} ${VESTING_OWNER} ${VESTING_START_TIME} ${VESTING_DURATION} ${VESTING_NAME}`,
+    `npx hardhat verify --network ${networkName} --contract contracts/HPP_Vesting.sol:HPP_Vesting ${contractAddress} ${HPP_TOKEN_ADDRESS} ${VESTING_OWNER} ${VESTING_START_TIME} ${VESTING_DURATION} ${vestingName}`,
   );
   console.log('=====================================\n');
 }
