@@ -216,7 +216,7 @@ contract HPPCustodyStaking is Ownable2Step, Pausable, ReentrancyGuard {
         _firstValidIndex[msg.sender] = lastProcessedIdx;
 
         // Automatically compact the array if it gets too long (optional optimization)
-        if (lastProcessedIdx > 10 && lastProcessedIdx > n / 2) {
+        if (lastProcessedIdx == n || (lastProcessedIdx > 10 && lastProcessedIdx > n / 2)) {
             _compactCooldownArray(msg.sender);
         }
 
@@ -235,7 +235,16 @@ contract HPPCustodyStaking is Ownable2Step, Pausable, ReentrancyGuard {
         uint256 firstIdx = _firstValidIndex[user];
         uint256 n = list.length;
         
-        if (firstIdx == 0 || firstIdx >= n) return;
+        if (firstIdx == 0) {
+            return;
+        }
+
+        if (firstIdx >= n) {
+            delete _cooldowns[user];
+            _firstValidIndex[user] = 0;
+            emit CooldownArrayCompacted(user, 0);
+            return;
+        }
         
         // Move valid items to the front
         uint256 j = 0;
