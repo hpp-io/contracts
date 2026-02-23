@@ -1,6 +1,3 @@
-// Incentive program for AIP-21 voters (HPP Vesting - AIP 21)
-// Details : https://medium.com/aergo/hpp-aip-21-building-a-value-aligned-layer-2-ecosystem-through-governance-and-incentives-5bdd3df27cf2
-
 // SPDX-License-Identifier: MIT
 // Compatible with OpenZeppelin Contracts ^5.0.0
 pragma solidity ^0.8.28;
@@ -12,11 +9,13 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /**
- * @title HPP_Vesting_AIP21
- * @notice 24-month vesting program for AIP-21 voters
- * @dev Secure vesting implementation using OpenZeppelin VestingWallet
+ * @title HPP_Vesting
+ * @notice Linear vesting contract for token distribution programs
+ * @dev Reusable vesting contract with configurable start time and duration.
+ *      Supports multiple beneficiaries with individual vesting schedules.
+ *      Tokens are vested linearly over the specified duration from the start time.
  */
-contract HPP_Vesting_AIP21 is Ownable, ReentrancyGuard {
+contract HPP_Vesting is Ownable, ReentrancyGuard {
     using EnumerableSet for EnumerableSet.AddressSet;
     using SafeERC20 for IERC20;
     
@@ -25,19 +24,20 @@ contract HPP_Vesting_AIP21 is Ownable, ReentrancyGuard {
         address beneficiary;        // Vesting recipient address
         uint256 totalAmount;        // Total vesting amount
         uint256 claimedAmount;      // Already claimed amount
-        uint256 startTime;          // Vesting start time
-        uint256 duration;           // Vesting duration (24 months = 730 days)
         bool isActive;              // Whether vesting is active
     }
     
     /// @notice HPP token contract
     IERC20 public immutable hppToken;
     
-    /// @notice Vesting start time (based on TGE)
-    uint256 public vestingStartTime;
+    /// @notice Vesting start time (Unix timestamp in seconds)
+    uint256 public immutable vestingStartTime;
     
-    /// @notice Vesting duration (24 months)
-    uint256 public constant VESTING_DURATION = 730 days; // 24 months
+    /// @notice Vesting duration (in seconds)
+    uint256 public immutable vestingDuration;
+    
+    /// @notice Vesting name/identifier
+    string public vestingName;
     
     /// @notice Vesting schedule mapping
     mapping(address => VestingSchedule) public vestingSchedules;
@@ -47,11 +47,6 @@ contract HPP_Vesting_AIP21 is Ownable, ReentrancyGuard {
     
     /// @notice Total assigned amount = claimed + unclaimed (across active obligations)
     uint256 public totalVestingAmount;
-
-    
-    
-    /// @notice Whether vesting has started
-    bool public vestingStarted;
     
     /// @notice Event emitted when a vesting schedule is added
     event VestingScheduleAdded(address indexed beneficiary, uint256 amount, uint256 startTime);
@@ -59,36 +54,33 @@ contract HPP_Vesting_AIP21 is Ownable, ReentrancyGuard {
     /// @notice Event emitted when tokens are claimed
     event TokensClaimed(address indexed beneficiary, uint256 amount);
     
-    /// @notice Event emitted when vesting starts
-    event VestingStarted(uint256 startTime);
-    
     /// @notice Event emitted when a vesting schedule is revoked
     event VestingScheduleRevoked(address indexed beneficiary);
 
     /**
      * @notice Contract constructor
      * @param _hppToken HPP token contract address
-     * @param _initialOwner Contract owner address
+     * @param _initialOwner Contract owner address (can add/revoke schedules)
+     * @param _vestingStartTime Vesting start time (Unix timestamp in seconds)
+     * @param _vestingDuration Vesting duration in seconds (e.g., 730 days = 63072000)
+     * @param _vestingName Vesting name/identifier
      */
-    constructor(address _hppToken, address _initialOwner) Ownable(_initialOwner) {
+    constructor(
+        address _hppToken,
+        address _initialOwner,
+        uint256 _vestingStartTime,
+        uint256 _vestingDuration,
+        string memory _vestingName
+    ) Ownable(_initialOwner) {
         require(_hppToken != address(0), "Invalid token address");
         require(_initialOwner != address(0), "Invalid owner address");
+        require(_vestingStartTime > 0, "Invalid vesting start time");
+        require(_vestingDuration > 0, "Invalid vesting duration");
         
         hppToken = IERC20(_hppToken);
-    }
-    
-    /**
-     * @notice Start vesting (based on TGE)
-     * @dev Only callable by the owner
-     */
-    function startVesting() external onlyOwner {
-        require(!vestingStarted, "Vesting already started");
-        require(vestingStartTime == 0, "Vesting start time already set");
-        
-        vestingStartTime = block.timestamp;
-        vestingStarted = true;
-        
-        emit VestingStarted(vestingStartTime);
+        vestingStartTime = _vestingStartTime;
+        vestingDuration = _vestingDuration;
+        vestingName = _vestingName;
     }
     
     /**
@@ -105,13 +97,10 @@ contract HPP_Vesting_AIP21 is Ownable, ReentrancyGuard {
         require(_beneficiary != address(0), "Invalid beneficiary address");
         require(_amount > 0, "Amount must be greater than 0");
         require(!vestingSchedules[_beneficiary].isActive, "Vesting schedule already exists");
-        require(vestingStarted && vestingStartTime != 0, "Vesting not started");
         vestingSchedules[_beneficiary] = VestingSchedule({
             beneficiary: _beneficiary,
             totalAmount: _amount,
             claimedAmount: 0,
-            startTime: vestingStartTime,
-            duration: VESTING_DURATION,
             isActive: true
         });
         beneficiaries.add(_beneficiary);
@@ -140,7 +129,7 @@ contract HPP_Vesting_AIP21 is Ownable, ReentrancyGuard {
     function claimTokens() external nonReentrant {
         VestingSchedule storage schedule = vestingSchedules[msg.sender];
         require(schedule.isActive, "No active vesting schedule");
-        require(vestingStarted, "Vesting not started yet");
+        require(block.timestamp >= vestingStartTime, "Vesting not started yet");
         
         uint256 claimableAmount = getClaimableAmount(msg.sender);
         require(claimableAmount > 0, "No tokens to claim");
@@ -160,7 +149,7 @@ contract HPP_Vesting_AIP21 is Ownable, ReentrancyGuard {
     function getClaimableAmount(address _beneficiary) public view returns (uint256) {
         VestingSchedule storage schedule = vestingSchedules[_beneficiary];
         
-        if (!schedule.isActive || !vestingStarted) {
+        if (!schedule.isActive) {
             return 0;
         }
         
@@ -174,16 +163,16 @@ contract HPP_Vesting_AIP21 is Ownable, ReentrancyGuard {
      * @return Vested token amount
      */
     function _getVestedAmount(VestingSchedule storage schedule) internal view returns (uint256) {
-        if (block.timestamp < schedule.startTime) {
+        if (block.timestamp < vestingStartTime) {
             return 0;
         }
         
-        if (block.timestamp >= schedule.startTime + schedule.duration) {
+        if (block.timestamp >= vestingStartTime + vestingDuration) {
             return schedule.totalAmount;
         }
         
-        // Linear vesting calculation (distributed evenly every month)
-        return (schedule.totalAmount * (block.timestamp - schedule.startTime)) / schedule.duration;
+        // Linear vesting calculation (proportional to elapsed time)
+        return (schedule.totalAmount * (block.timestamp - vestingStartTime)) / vestingDuration;
     }
     
     /**
@@ -203,8 +192,6 @@ contract HPP_Vesting_AIP21 is Ownable, ReentrancyGuard {
         return beneficiaries.values();
     }
     
-    
-
     /**
      * @notice Revoke a vesting schedule (for emergency use)
      * @param _beneficiary Vesting recipient address
