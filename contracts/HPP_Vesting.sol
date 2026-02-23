@@ -28,7 +28,10 @@ contract HPP_Vesting is Ownable, ReentrancyGuard {
     }
     
     /// @notice HPP token contract
-    ERC20 public immutable hppToken;
+    IERC20 public immutable hppToken;
+    
+    /// @notice Vesting start time (Unix timestamp in seconds)
+    uint256 public immutable vestingStartTime;
     
     /// @notice Vesting duration (in seconds)
     uint256 public immutable vestingDuration;
@@ -71,17 +74,8 @@ contract HPP_Vesting is Ownable, ReentrancyGuard {
     ) Ownable(_initialOwner) {
         require(_hppToken != address(0), "Invalid token address");
         require(_initialOwner != address(0), "Invalid owner address");
-        
-        hppToken = ERC20(_hppToken);
-    }
-    
-    /**
-     * @notice Start vesting (based on TGE)
-     * @dev Only callable by the owner
-     */
-    function startVesting() external onlyOwner {
-        require(!vestingStarted, "Vesting already started");
-        require(vestingStartTime == 0, "Vesting start time already set");
+        require(_vestingStartTime > 0, "Invalid vesting start time");
+        require(_vestingDuration > 0, "Invalid vesting duration");
         
         hppToken = IERC20(_hppToken);
         vestingStartTime = _vestingStartTime;
@@ -211,7 +205,7 @@ contract HPP_Vesting is Ownable, ReentrancyGuard {
             totalVestingAmount -= total;
         }
         s.isActive = false;
-        beneficiaries.remove(_beneficiary);
+        
         emit VestingScheduleRevoked(_beneficiary);
     }
 
