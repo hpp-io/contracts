@@ -94,4 +94,39 @@ contract HPP_StakingReward_S1 is Ownable, ReentrancyGuard {
     function getBeneficiaries() external view returns (address[] memory) {
         return beneficiaries.values();
     }
+
+    /**
+     * @notice Claim the full reward. Callable once per beneficiary.
+     */
+    function claim() external nonReentrant {
+        Reward storage r = rewards[msg.sender];
+        require(r.isActive, "No active reward");
+        require(!r.claimed, "Already claimed");
+
+        uint256 amount = r.totalAmount;
+        r.claimed = true;
+
+        hppToken.safeTransfer(msg.sender, amount);
+
+        emit RewardClaimed(msg.sender, amount);
+    }
+
+    /**
+     * @notice Returns the remaining claimable amount for a beneficiary.
+     *         Equals totalAmount if active and unclaimed; otherwise 0.
+     */
+    function getClaimableAmount(address _beneficiary) public view returns (uint256) {
+        Reward storage r = rewards[_beneficiary];
+        if (!r.isActive || r.claimed) {
+            return 0;
+        }
+        return r.totalAmount;
+    }
+
+    /**
+     * @notice Returns the Reward struct for a beneficiary.
+     */
+    function getReward(address _beneficiary) external view returns (Reward memory) {
+        return rewards[_beneficiary];
+    }
 }
