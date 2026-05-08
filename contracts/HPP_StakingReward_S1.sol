@@ -74,8 +74,8 @@ contract HPP_StakingReward_S1 is Ownable, ReentrancyGuard {
     function _addReward(address _beneficiary, uint256 _amount) private {
         require(_beneficiary != address(0), "Invalid beneficiary address");
         require(_amount > 0, "Amount must be greater than 0");
-        require(!rewards[_beneficiary].isActive, "Reward already exists");
         require(!rewards[_beneficiary].claimed, "Reward already claimed");
+        require(!rewards[_beneficiary].isActive, "Reward already exists");
 
         rewards[_beneficiary] = Reward({
             beneficiary: _beneficiary,
@@ -128,5 +128,20 @@ contract HPP_StakingReward_S1 is Ownable, ReentrancyGuard {
      */
     function getReward(address _beneficiary) external view returns (Reward memory) {
         return rewards[_beneficiary];
+    }
+
+    /**
+     * @notice Revoke an active unclaimed reward (owner only). Frees the slot so the
+     *         same address can be re-registered, while claimed addresses remain locked.
+     */
+    function revokeReward(address _beneficiary) external onlyOwner {
+        Reward storage r = rewards[_beneficiary];
+        require(r.isActive && !r.claimed, "No active reward");
+
+        totalRewardAmount -= r.totalAmount;
+        r.isActive = false;
+        beneficiaries.remove(_beneficiary);
+
+        emit RewardRevoked(_beneficiary);
     }
 }

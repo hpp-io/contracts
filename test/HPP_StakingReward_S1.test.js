@@ -182,4 +182,57 @@ describe("HPP_StakingReward_S1", function () {
       expect(r.isActive).to.equal(true);
     });
   });
+
+  describe("revokeReward", function () {
+    const AMOUNT = ethers.parseEther("100");
+
+    it("Revokes an active unclaimed reward and emits event", async function () {
+      await reward.addReward(alice.address, AMOUNT);
+      await expect(reward.revokeReward(alice.address))
+        .to.emit(reward, "RewardRevoked")
+        .withArgs(alice.address);
+
+      const r = await reward.rewards(alice.address);
+      expect(r.isActive).to.equal(false);
+      expect(r.claimed).to.equal(false);
+      expect(await reward.totalRewardAmount()).to.equal(0n);
+      expect(await reward.getBeneficiaries()).to.deep.equal([]);
+      expect(await reward.getClaimableAmount(alice.address)).to.equal(0n);
+    });
+
+    it("Allows re-registering the same address after revoke", async function () {
+      await reward.addReward(alice.address, AMOUNT);
+      await reward.revokeReward(alice.address);
+      await reward.addReward(alice.address, AMOUNT * 2n);
+      expect(await reward.totalRewardAmount()).to.equal(AMOUNT * 2n);
+      expect(await reward.getClaimableAmount(alice.address)).to.equal(AMOUNT * 2n);
+    });
+
+    it("Reverts when no active reward", async function () {
+      await expect(reward.revokeReward(alice.address))
+        .to.be.revertedWith("No active reward");
+    });
+
+    it("Reverts when reward already claimed", async function () {
+      await reward.addReward(alice.address, AMOUNT);
+      await hpp.transfer(await reward.getAddress(), AMOUNT);
+      await reward.connect(alice).claim();
+      await expect(reward.revokeReward(alice.address))
+        .to.be.revertedWith("No active reward");
+    });
+
+    it("Blocks re-registering a claimed address", async function () {
+      await reward.addReward(alice.address, AMOUNT);
+      await hpp.transfer(await reward.getAddress(), AMOUNT);
+      await reward.connect(alice).claim();
+      await expect(reward.addReward(alice.address, AMOUNT))
+        .to.be.revertedWith("Reward already claimed");
+    });
+
+    it("Reverts when called by non-owner", async function () {
+      await reward.addReward(alice.address, AMOUNT);
+      await expect(reward.connect(bob).revokeReward(alice.address))
+        .to.be.revertedWithCustomError(reward, "OwnableUnauthorizedAccount");
+    });
+  });
 });
