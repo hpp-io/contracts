@@ -289,4 +289,29 @@ describe("HPP_StakingReward_S1", function () {
         .to.be.revertedWithCustomError(reward, "OwnableUnauthorizedAccount");
     });
   });
+
+  describe("Reentrancy", function () {
+    it("Blocks reentry into claim() via malicious token", async function () {
+      const Mal = await ethers.getContractFactory("MaliciousReentrantToken");
+      const mal = await Mal.deploy();
+      await mal.waitForDeployment();
+
+      const Reward = await ethers.getContractFactory("HPP_StakingReward_S1");
+      const malReward = await Reward.deploy(
+        await mal.getAddress(),
+        owner.address,
+        "MAL_S1"
+      );
+      await malReward.waitForDeployment();
+
+      const A = ethers.parseEther("100");
+      await malReward.addReward(alice.address, A);
+      await mal.transfer(await malReward.getAddress(), A);
+      await mal.setTarget(await malReward.getAddress());
+      await mal.arm();
+
+      await expect(malReward.connect(alice).claim())
+        .to.be.revertedWithCustomError(malReward, "ReentrancyGuardReentrantCall");
+    });
+  });
 });
