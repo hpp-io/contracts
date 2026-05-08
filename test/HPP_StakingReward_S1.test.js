@@ -290,6 +290,79 @@ describe("HPP_StakingReward_S1", function () {
     });
   });
 
+  describe("Stats counters", function () {
+    const A1 = ethers.parseEther("100");
+    const A2 = ethers.parseEther("200");
+    const A3 = ethers.parseEther("300");
+
+    beforeEach(async function () {
+      await reward.addRewards(
+        [alice.address, bob.address, carol.address],
+        [A1, A2, A3]
+      );
+      // Fund the contract for the full amount so claims can succeed
+      await hpp.transfer(await reward.getAddress(), A1 + A2 + A3);
+    });
+
+    it("Initial counters are zero", async function () {
+      expect(await reward.totalClaimedAmount()).to.equal(0n);
+      expect(await reward.claimedCount()).to.equal(0n);
+      expect(await reward.totalUnclaimedAmount()).to.equal(A1 + A2 + A3);
+      expect(await reward.unclaimedCount()).to.equal(3n);
+    });
+
+    it("totalClaimedAmount accumulates on each claim", async function () {
+      await reward.connect(alice).claim();
+      expect(await reward.totalClaimedAmount()).to.equal(A1);
+      await reward.connect(bob).claim();
+      expect(await reward.totalClaimedAmount()).to.equal(A1 + A2);
+      await reward.connect(carol).claim();
+      expect(await reward.totalClaimedAmount()).to.equal(A1 + A2 + A3);
+    });
+
+    it("claimedCount increments per unique claimer", async function () {
+      await reward.connect(alice).claim();
+      expect(await reward.claimedCount()).to.equal(1n);
+      await reward.connect(bob).claim();
+      expect(await reward.claimedCount()).to.equal(2n);
+    });
+
+    it("totalUnclaimedAmount = totalRewardAmount - totalClaimedAmount", async function () {
+      await reward.connect(alice).claim();
+      expect(await reward.totalUnclaimedAmount()).to.equal(A2 + A3);
+      await reward.connect(bob).claim();
+      expect(await reward.totalUnclaimedAmount()).to.equal(A3);
+      await reward.connect(carol).claim();
+      expect(await reward.totalUnclaimedAmount()).to.equal(0n);
+    });
+
+    it("unclaimedCount = beneficiaries - claimedCount", async function () {
+      await reward.connect(alice).claim();
+      expect(await reward.unclaimedCount()).to.equal(2n);
+      await reward.connect(bob).claim();
+      expect(await reward.unclaimedCount()).to.equal(1n);
+      await reward.connect(carol).claim();
+      expect(await reward.unclaimedCount()).to.equal(0n);
+    });
+
+    it("Revoke (pre-claim) reduces unclaimedCount and totalUnclaimedAmount", async function () {
+      await reward.revokeReward(alice.address);
+      expect(await reward.claimedCount()).to.equal(0n);
+      expect(await reward.totalClaimedAmount()).to.equal(0n);
+      expect(await reward.unclaimedCount()).to.equal(2n);
+      expect(await reward.totalUnclaimedAmount()).to.equal(A2 + A3);
+    });
+
+    it("Mixed claim + revoke keeps counters consistent", async function () {
+      await reward.connect(alice).claim();
+      await reward.revokeReward(bob.address);
+      expect(await reward.claimedCount()).to.equal(1n);
+      expect(await reward.totalClaimedAmount()).to.equal(A1);
+      expect(await reward.unclaimedCount()).to.equal(1n); // only carol active+unclaimed
+      expect(await reward.totalUnclaimedAmount()).to.equal(A3);
+    });
+  });
+
   describe("Reentrancy", function () {
     it("Blocks reentry into claim() via malicious token", async function () {
       const Mal = await ethers.getContractFactory("MaliciousReentrantToken");

@@ -31,6 +31,8 @@ contract HPP_StakingReward_S1 is Ownable, ReentrancyGuard {
     mapping(address => Reward) public rewards;
     EnumerableSet.AddressSet private beneficiaries;
     uint256 public totalRewardAmount;
+    uint256 public totalClaimedAmount;
+    uint256 public claimedCount;
 
     event RewardAdded(address indexed beneficiary, uint256 amount);
     event RewardClaimed(address indexed beneficiary, uint256 amount);
@@ -105,10 +107,28 @@ contract HPP_StakingReward_S1 is Ownable, ReentrancyGuard {
 
         uint256 amount = r.totalAmount;
         r.claimed = true;
+        totalClaimedAmount += amount;
+        claimedCount += 1;
 
         hppToken.safeTransfer(msg.sender, amount);
 
         emit RewardClaimed(msg.sender, amount);
+    }
+
+    /**
+     * @notice Returns the total amount of rewards still unclaimed
+     *         (registered but not yet claimed; excludes revoked).
+     */
+    function totalUnclaimedAmount() external view returns (uint256) {
+        return totalRewardAmount - totalClaimedAmount;
+    }
+
+    /**
+     * @notice Returns the number of beneficiaries that have not yet claimed.
+     *         Equals the count of active beneficiaries minus those who have claimed.
+     */
+    function unclaimedCount() external view returns (uint256) {
+        return beneficiaries.length() - claimedCount;
     }
 
     /**
