@@ -6,6 +6,7 @@
 * HPP_Migration_AERGO.sol : AERGO to HPP Migration Contract
 * HPP_Migration_AQT.sol : AQT to HPP Migration Contract
 * HPP_Custody_Staking.sol : Custody staking contract with cooldown period for unstaking
+* HPP_StakingReward_S1.sol : Season 1 staking reward distribution contract — beneficiaries claim 100% of their reward immediately and exactly once after owner registers them via CSV-driven batch
 
 
 ## How to Test:
@@ -13,6 +14,9 @@
 ```shell
 # TESTS HPP Custody Staking (before deploying HPP Custody Staking)
 npx hardhat test test/HPPCustodyStaking.test.js
+
+# TESTS HPP Staking Reward S1
+npx hardhat test test/HPP_StakingReward_S1.test.js
 ```
 
 ## How to Deploy:
@@ -29,6 +33,11 @@ npx hardhat run scripts/HPP_Vesting.deploy.js --network sepolia
 # Deploy HPP Custody Staking (after deploying HPP Token)
 npx hardhat run scripts/HPP_Custody_Staking.deploy.js --network hpp_mainnet
 npx hardhat run scripts/HPP_Custody_Staking.deploy.js --network hpp_sepolia
+
+# Deploy HPP Staking Reward S1 (after deploying HPP Token; requires HPP_TOKEN_ADDRESS env var; optional STAKING_REWARD_OWNER, REWARD_NAME)
+# Reads beneficiaries from scripts/staking_reward_beneficiaries/s1_beneficiaries.csv
+npx hardhat run scripts/HPP_StakingReward_S1.deploy.js --network mainnet
+npx hardhat run scripts/HPP_StakingReward_S1.deploy.js --network sepolia
 ```
 
 ## How to Contract Verify:
@@ -46,3 +55,6 @@ npx hardhat verify --network <NETWORK> --contract contracts/HPP_Vesting.sol:HPP_
 # Verify HPP Custody Staking
 npx hardhat verify --network hpp_mainnet <DEPLOYED CONTRACT ADDRESS> <HPP_TOKEN_ADDRESS> <CUSTODY_WALLET> <COOLDOWN_DURATION>
 npx hardhat verify --network hpp_sepolia <DEPLOYED CONTRACT ADDRESS> <HPP_TOKEN_ADDRESS> <CUSTODY_WALLET> <COOLDOWN_DURATION>
+
+# Verify HPP Staking Reward S1
+npx hardhat verify --network <NETWORK> --contract contracts/HPP_StakingReward_S1.sol:HPP_StakingReward_S1 <DEPLOYED CONTRACT ADDRESS> <HPP_TOKEN_ADDRESS> <OWNER_ADDRESS> "<REWARD_NAME>"
