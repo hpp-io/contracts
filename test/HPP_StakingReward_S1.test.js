@@ -235,4 +235,58 @@ describe("HPP_StakingReward_S1", function () {
         .to.be.revertedWithCustomError(reward, "OwnableUnauthorizedAccount");
     });
   });
+
+  describe("emergencyWithdraw", function () {
+    const FUND = ethers.parseEther("1000");
+
+    beforeEach(async function () {
+      await hpp.transfer(await reward.getAddress(), FUND);
+    });
+
+    it("Withdraws partial balance to owner", async function () {
+      const before = await hpp.balanceOf(owner.address);
+      await reward.emergencyWithdraw(ethers.parseEther("400"));
+      const after = await hpp.balanceOf(owner.address);
+      expect(after - before).to.equal(ethers.parseEther("400"));
+      expect(await hpp.balanceOf(await reward.getAddress()))
+        .to.equal(ethers.parseEther("600"));
+    });
+
+    it("Reverts on zero amount", async function () {
+      await expect(reward.emergencyWithdraw(0))
+        .to.be.revertedWith("Amount must be greater than 0");
+    });
+
+    it("Reverts on insufficient balance", async function () {
+      await expect(reward.emergencyWithdraw(FUND + 1n))
+        .to.be.revertedWith("Insufficient balance");
+    });
+
+    it("Reverts when called by non-owner", async function () {
+      await expect(reward.connect(alice).emergencyWithdraw(1))
+        .to.be.revertedWithCustomError(reward, "OwnableUnauthorizedAccount");
+    });
+  });
+
+  describe("emergencyWithdrawAll", function () {
+    it("Withdraws full balance to owner", async function () {
+      const FUND = ethers.parseEther("777");
+      await hpp.transfer(await reward.getAddress(), FUND);
+      const before = await hpp.balanceOf(owner.address);
+      await reward.emergencyWithdrawAll();
+      const after = await hpp.balanceOf(owner.address);
+      expect(after - before).to.equal(FUND);
+      expect(await hpp.balanceOf(await reward.getAddress())).to.equal(0n);
+    });
+
+    it("Reverts when no balance", async function () {
+      await expect(reward.emergencyWithdrawAll())
+        .to.be.revertedWith("No tokens to withdraw");
+    });
+
+    it("Reverts when called by non-owner", async function () {
+      await expect(reward.connect(alice).emergencyWithdrawAll())
+        .to.be.revertedWithCustomError(reward, "OwnableUnauthorizedAccount");
+    });
+  });
 });

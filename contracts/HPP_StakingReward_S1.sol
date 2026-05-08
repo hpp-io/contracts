@@ -144,4 +144,22 @@ contract HPP_StakingReward_S1 is Ownable, ReentrancyGuard {
 
         emit RewardRevoked(_beneficiary);
     }
+
+    /**
+     * @notice Withdraw a specified amount of tokens to the owner (emergency use).
+     */
+    function emergencyWithdraw(uint256 _amount) external onlyOwner {
+        require(_amount > 0, "Amount must be greater than 0");
+        require(_amount <= hppToken.balanceOf(address(this)), "Insufficient balance");
+        hppToken.safeTransfer(owner(), _amount);
+    }
+
+    /**
+     * @notice Withdraw the entire token balance to the owner (emergency use).
+     */
+    function emergencyWithdrawAll() external onlyOwner {
+        uint256 balance = hppToken.balanceOf(address(this));
+        require(balance > 0, "No tokens to withdraw");
+        hppToken.safeTransfer(owner(), balance);
+    }
 }
