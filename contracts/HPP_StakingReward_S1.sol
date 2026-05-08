@@ -45,4 +45,53 @@ contract HPP_StakingReward_S1 is Ownable, ReentrancyGuard {
         hppToken = IERC20(_hppToken);
         rewardName = _rewardName;
     }
+
+    /**
+     * @notice Register a single reward (owner only).
+     * @param _beneficiary Reward recipient address.
+     * @param _amount Reward amount in token base units.
+     */
+    function addReward(address _beneficiary, uint256 _amount) external onlyOwner {
+        _addReward(_beneficiary, _amount);
+    }
+
+    /**
+     * @notice Register multiple rewards in one call (owner only).
+     * @param _beneficiaries Reward recipient addresses.
+     * @param _amounts Reward amounts in token base units.
+     */
+    function addRewards(address[] calldata _beneficiaries, uint256[] calldata _amounts)
+        external
+        onlyOwner
+    {
+        require(_beneficiaries.length == _amounts.length, "Arrays length mismatch");
+        require(_beneficiaries.length > 0, "Empty arrays");
+        for (uint256 i = 0; i < _beneficiaries.length; i++) {
+            _addReward(_beneficiaries[i], _amounts[i]);
+        }
+    }
+
+    function _addReward(address _beneficiary, uint256 _amount) private {
+        require(_beneficiary != address(0), "Invalid beneficiary address");
+        require(_amount > 0, "Amount must be greater than 0");
+        require(!rewards[_beneficiary].isActive, "Reward already exists");
+        require(!rewards[_beneficiary].claimed, "Reward already claimed");
+
+        rewards[_beneficiary] = Reward({
+            beneficiary: _beneficiary,
+            totalAmount: _amount,
+            claimed: false,
+            isActive: true
+        });
+        beneficiaries.add(_beneficiary);
+        totalRewardAmount += _amount;
+        emit RewardAdded(_beneficiary, _amount);
+    }
+
+    /**
+     * @notice Returns all currently active beneficiary addresses.
+     */
+    function getBeneficiaries() external view returns (address[] memory) {
+        return beneficiaries.values();
+    }
 }

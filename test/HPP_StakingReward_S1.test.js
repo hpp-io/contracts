@@ -51,4 +51,73 @@ describe("HPP_StakingReward_S1", function () {
       ).to.be.revertedWithCustomError(Reward, "OwnableInvalidOwner");
     });
   });
+
+  describe("addReward", function () {
+    const AMOUNT = ethers.parseEther("100");
+
+    it("Adds a single reward and updates state + emits event", async function () {
+      await expect(reward.addReward(alice.address, AMOUNT))
+        .to.emit(reward, "RewardAdded")
+        .withArgs(alice.address, AMOUNT);
+
+      const r = await reward.rewards(alice.address);
+      expect(r.beneficiary).to.equal(alice.address);
+      expect(r.totalAmount).to.equal(AMOUNT);
+      expect(r.claimed).to.equal(false);
+      expect(r.isActive).to.equal(true);
+
+      expect(await reward.totalRewardAmount()).to.equal(AMOUNT);
+      expect(await reward.getBeneficiaries()).to.deep.equal([alice.address]);
+    });
+
+    it("Reverts on zero beneficiary", async function () {
+      await expect(reward.addReward(ethers.ZeroAddress, AMOUNT))
+        .to.be.revertedWith("Invalid beneficiary address");
+    });
+
+    it("Reverts on zero amount", async function () {
+      await expect(reward.addReward(alice.address, 0))
+        .to.be.revertedWith("Amount must be greater than 0");
+    });
+
+    it("Reverts on duplicate active reward", async function () {
+      await reward.addReward(alice.address, AMOUNT);
+      await expect(reward.addReward(alice.address, AMOUNT))
+        .to.be.revertedWith("Reward already exists");
+    });
+
+    it("Reverts when called by non-owner", async function () {
+      await expect(reward.connect(alice).addReward(bob.address, AMOUNT))
+        .to.be.revertedWithCustomError(reward, "OwnableUnauthorizedAccount");
+    });
+  });
+
+  describe("addRewards", function () {
+    const A1 = ethers.parseEther("10");
+    const A2 = ethers.parseEther("20");
+    const A3 = ethers.parseEther("30");
+
+    it("Adds a batch", async function () {
+      await reward.addRewards(
+        [alice.address, bob.address, carol.address],
+        [A1, A2, A3]
+      );
+      expect(await reward.totalRewardAmount()).to.equal(A1 + A2 + A3);
+      const list = await reward.getBeneficiaries();
+      expect(list).to.have.lengthOf(3);
+      expect(list).to.include(alice.address);
+      expect(list).to.include(bob.address);
+      expect(list).to.include(carol.address);
+    });
+
+    it("Reverts on length mismatch", async function () {
+      await expect(
+        reward.addRewards([alice.address], [A1, A2])
+      ).to.be.revertedWith("Arrays length mismatch");
+    });
+
+    it("Reverts on empty input", async function () {
+      await expect(reward.addRewards([], [])).to.be.revertedWith("Empty arrays");
+    });
+  });
 });
