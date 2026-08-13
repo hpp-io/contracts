@@ -7,6 +7,7 @@
 * HPP_Migration_AQT.sol : AQT to HPP Migration Contract
 * HPP_Custody_Staking.sol : Custody staking contract with cooldown period for unstaking
 * HPP_StakingReward_S1.sol : Season 1 staking reward distribution contract — beneficiaries claim 100% of their reward immediately and exactly once after owner registers them via CSV-driven batch
+* HPP_StakingReward_S2.sol : Season 2 staking reward distribution contract — same claim-once model as Season 1, reads beneficiaries from s2_beneficiaries.csv
 
 
 ## How to Test:
@@ -17,6 +18,9 @@ npx hardhat test test/HPPCustodyStaking.test.js
 
 # TESTS HPP Staking Reward S1
 npx hardhat test test/HPP_StakingReward_S1.test.js
+
+# TESTS HPP Staking Reward S2
+npx hardhat test test/HPP_StakingReward_S2.test.js
 ```
 
 ## How to Deploy:
@@ -38,6 +42,11 @@ npx hardhat run scripts/HPP_Custody_Staking.deploy.js --network hpp_sepolia
 # Reads beneficiaries from scripts/staking_reward_beneficiaries/s1_beneficiaries.csv
 npx hardhat run scripts/HPP_StakingReward_S1.deploy.js --network mainnet
 npx hardhat run scripts/HPP_StakingReward_S1.deploy.js --network sepolia
+
+# Deploy HPP Staking Reward S2 (after deploying HPP Token; requires HPP_TOKEN_ADDRESS env var; optional STAKING_REWARD_OWNER, REWARD_NAME)
+# Reads beneficiaries from scripts/staking_reward_beneficiaries/s2_beneficiaries.csv
+npx hardhat run scripts/HPP_StakingReward_S2.deploy.js --network mainnet
+npx hardhat run scripts/HPP_StakingReward_S2.deploy.js --network sepolia
 ```
 
 ## How to Contract Verify:
@@ -58,3 +67,6 @@ npx hardhat verify --network hpp_sepolia <DEPLOYED CONTRACT ADDRESS> <HPP_TOKEN_
 
 # Verify HPP Staking Reward S1
 npx hardhat verify --network <NETWORK> --contract contracts/HPP_StakingReward_S1.sol:HPP_StakingReward_S1 <DEPLOYED CONTRACT ADDRESS> <HPP_TOKEN_ADDRESS> <OWNER_ADDRESS> "<REWARD_NAME>"
+
+# Verify HPP Staking Reward S2
+npx hardhat verify --network <NETWORK> --contract contracts/HPP_StakingReward_S2.sol:HPP_StakingReward_S2 <DEPLOYED CONTRACT ADDRESS> <HPP_TOKEN_ADDRESS> <OWNER_ADDRESS> "<REWARD_NAME>"
