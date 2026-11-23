@@ -49,6 +49,43 @@ npx hardhat run scripts/HPP_StakingReward_S2.deploy.js --network mainnet
 npx hardhat run scripts/HPP_StakingReward_S2.deploy.js --network sepolia
 ```
 
+## How to Bridge HPP to Base:
+
+HPP on Ethereum is bridged to Base through the Base standard bridge. The Base-side token is created once
+by the `OptimismMintableERC20Factory` predeploy (`0x4200000000000000000000000000000000000012`), which
+gives it EIP-2612 permit. Its address is fixed by the name, symbol and decimals in
+`scripts/HPP_Base_Bridge.config.js`.
+
+| | Sepolia / Base Sepolia | Ethereum / Base |
+| - | - | - |
+| L1 HPP | `0xB34e0d1fee60e078D611D4218AFB004b639C7b76` | `0xe33fbE7584EB79e2673abe576B7AC8C0De62565c` |
+| L1StandardBridge | `0xfd0Bf71F60660E2f608ed56e1659C450eB113120` | `0x3154Cf16ccdb4C6d922629664174b904d80F2C35` |
+| L2 HPP | `0x6562A6ea4F5B1e4293eD0E6146f6Def41f963305` (created, verified) | `0xE9BB73eD2EC7B9F0BE463ce8aF24f2cF0ae7CCE6` (created, verified) |
+
+Mainnet runs need `ALLOW_MAINNET=true`. `RECIPIENT` is optional and defaults to the sender.
+
+```shell
+# 1. Create the L2 HPP (once, on the Base side)
+npx hardhat run scripts/HPP_Base_Bridge.createL2Token.js --network base_sepolia
+
+# 2. Deposit HPP from Ethereum to Base (on the Ethereum side; approves the exact amount)
+AMOUNT=10 npx hardhat run scripts/HPP_Base_Bridge.deposit.js --network sepolia
+
+# 3. Start a withdrawal from Base to Ethereum (on the Base side)
+AMOUNT=1 npx hardhat run scripts/HPP_Base_Bridge.withdraw.js --network base_sepolia
+```
+
+The withdraw script only starts the withdrawal. Releasing the tokens on Ethereum takes two more
+L1 transactions (prove, then finalize after the finalization window), which are not scripted here.
+
+To verify the L2 HPP on BaseScan, submit `scripts/base_bridge_verify/OptimismMintableERC20.standard-input.json`
+as Solidity standard JSON input with:
+
+* Contract: `lib/contracts/src/universal/OptimismMintableERC20.sol:OptimismMintableERC20`
+* Compiler: `v0.8.15+commit.e14f2714` (optimizer 5000 runs, EVM `london`, already set in the JSON)
+* Constructor arguments: ABI-encoded `(address bridge, address remoteToken, string name, string symbol, uint8 decimals)`
+  = `(0x4200000000000000000000000000000000000010, <L1 HPP>, "HousePartyProtocol", "HPP", 18)`
+
 ## How to Contract Verify:
 
 ```shell
